@@ -1,0 +1,61 @@
+/oak:
+  ros__parameters:
+    camera:
+      i_nn_type: none
+    pipeline_gen:
+      # sync RGB + depth on the device so timestamps match (better pairing for RTAB-Map)
+      i_enable_sync: true
+      i_pipeline_type: RGBD
+      i_enable_imu: true
+      # IR dot projector: adds texture for stereo depth on flat regolith.
+      # The RGB sensor has an IR-cut filter, so the dots don't affect visual odometry.
+      i_laser_dot_brightness: 800
+      i_floodlight_brightness: 0
+
+    rgb:
+      # 1080P scaled 1/3 on-device -> 640x360. Small images = fast odometry + less USB traffic.
+      i_resolution: '1080P'
+      i_set_isp_scale: true
+      i_isp_num: 1
+      i_isp_den: 3
+      i_width: 640
+      i_height: 360
+      i_preview_width: 640
+      i_preview_height: 360
+      i_fps: 30.0
+      i_synced: true
+      # Cap exposure time (microseconds) to reduce motion blur when the rover turns.
+      r_set_auto_exposure_limit: true
+      r_auto_exposure_limit: 3000
+
+    # Must be '400P': plain '400' is rejected by the driver, which silently falls back to 720P.
+    # 400P halves the frame age (64 -> 30 ms) and sees closer (about 0.35 m instead of 0.7 m).
+    left:
+      i_resolution: '400P'
+      i_fps: 30.0
+    right:
+      i_resolution: '400P'
+      i_fps: 30.0
+
+    stereo:
+      i_synced: true
+      i_align_depth: true
+      i_width: 640
+      i_height: 360
+      i_subpixel: true
+      i_lr_check: true
+      i_extended_disp: false
+      # Do NOT enable the speckle / spatial / threshold / temporal post-filters here: they run on
+      # the OAK's small CPU and choke it. Measured 2026-11-04 at 640x360@30 with 720P stereo: none =
+      # 30 Hz, 64 ms old; threshold only = 18 Hz, 256 ms; speckle+threshold = 6 Hz, 700 ms; spatial =
+      # 5 Hz, 920 ms; all three = 2 Hz, 1400 ms. At 400P: none = 30 Hz, threshold only = 21 Hz.
+      # Depth range limits are applied on the laptop instead (Vis/MaxDepth, Grid/RangeMax).
+      i_depth_preset: HIGH_ACCURACY
+      # These run in the stereo hardware block, which doesn't load the OAK's CPU:
+      i_depth_filter_size: 5       # median filter: removes salt-and-pepper depth noise
+      i_stereo_conf_threshold: 200 # lower = stricter, fewer bad depth pixels (0-255)
+      i_lrc_threshold: 5           # stricter left-right check: fewer flying pixels at edges
+
+    imu:
+      i_acc_freq: 250
+      i_gyro_freq: 200
